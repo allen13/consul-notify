@@ -3,7 +3,7 @@ consul-notify
 
 The purpose of this project is to monitor consul and send notifications to various plugins. 
 This project was based on [consul-alerts](https://github.com/AcalephStorage/consul-alerts)
-consul-alerts is very feature rich and complicated. consul-notify seeks to address this complexity by only doing one thing, forwarding alerts to notifiers.
+which is very feature rich and complicated. consul-notify seeks to address this complexity by only doing one thing, forwarding alerts to notifiers.
 
 usage
 -----

@@ -29,3 +29,4 @@ _testmain.go
 /consul-alerts
 .vagrant
 .idea/
+consul-notify

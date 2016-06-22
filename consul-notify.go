@@ -53,7 +53,7 @@ func handleWatch(consulDc string, config *toml.TomlTree){
 	var checks []Check
 	readConsulStdinToWatchObject(&checks)
 
-	messages := ProcessChecks(checks, consulDc)
+	messages := processChecks(checks, consulDc)
 	notifiers := notifier.GetNotifiers(config)
 
 	for _,notifier := range notifiers{
@@ -116,7 +116,7 @@ type Check struct {
 	ServiceName string
 }
 
-func ProcessChecks(checks []Check, datacenter string) (messages notifier.Messages){
+func processChecks(checks []Check, datacenter string) (messages notifier.Messages){
 	messages = make(notifier.Messages, len(checks))
 	for i, check := range checks {
 		messages[i] = notifier.Message{

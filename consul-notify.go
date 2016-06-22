@@ -64,6 +64,9 @@ func handleWatch(consulDc string, config *toml.TomlTree){
 func runWatcher(consulAddr, datacenter, watchType string) {
 	consulNotify := os.Args[0]
 	cmd := exec.Command(
+		"consul", "lock",
+		"-http-addr", consulAddr,
+		"consul-notify/" + datacenter,
 		"consul", "watch",
 		"-http-addr", consulAddr,
 		"-datacenter", datacenter,

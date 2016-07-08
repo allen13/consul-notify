@@ -8,15 +8,73 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"gopkg.in/mgo.v2"
 )
+
 
 type AlertaNotifier struct {
 	Url string
 	Token string
+	MongoHosts string
+	MongoDB string
+	VerifyActiveNodes bool
+}
+
+
+type Node struct {
+	Name string
+}
+
+type Nodes []Node
+
+func (alertaNotifier *AlertaNotifier) CheckActiveNodes(messages Messages) {
+	var nodes Nodes
+	for _,message := range messages{
+		nodes = append(nodes, Node{message.Node})
+	}
+
+	_= alertaNotifier.retrieveNodesFromMongo()
+}
+
+func (AlertaNotifier *AlertaNotifier) retrieveNodesFromMongo() Nodes{
+	sess, err := mgo.Dial(AlertaNotifier.MongoHosts)
+	if err != nil {
+		panic(err)
+	}
+	defer sess.Close()
+
+	collection := sess.DB(AlertaNotifier.MongoDB).C("nodes")
+	var nodes Nodes
+	err = collection.Find(nil).Iter().All(&nodes)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return nodes
+}
+
+//Add the node to the database
+//set it to active
+func (alertaNotifier *AlertaNotifier) addNodeToMongo(node Node) {
+	session, err := mgo.Dial(alertaNotifier.MongoHosts)
+	if err != nil{
+		panic(err)
+	}
+	defer session.Close()
+
+	conn := session.DB(alertaNotifier.MongoDB).C("nodes")
+	err = conn.Insert(node)
+
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 
 func (alertaNotifier *AlertaNotifier) Notify(alerts Messages) bool {
+	if alertaNotifier.VerifyActiveNodes{
+		alertaNotifier.CheckActiveNodes(alerts)
+	}
+	//printf(alerts)
 
 	for _, alert := range alerts {
 		alertSuccess := alertaNotifier.sendToAlerta(alert)
@@ -26,6 +84,7 @@ func (alertaNotifier *AlertaNotifier) Notify(alerts Messages) bool {
 	}
 	return true
 }
+
 
 func (alertaNotifier *AlertaNotifier) sendToAlerta(alert Message) bool {
 

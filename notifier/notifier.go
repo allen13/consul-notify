@@ -81,6 +81,9 @@ func GetNotifiers(config *toml.TomlTree) (notifiers []Notifier) {
 		alertaNotifier := &AlertaNotifier{
 			Url: config.GetDefault("alerta.url", "http://localhost:8000").(string),
 			Token: config.GetDefault("alerta.token", "").(string),
+			MongoHosts:       config.GetDefault("alerta.mongo-hosts", "localhost").(string),
+			MongoDB:          config.GetDefault("alerta.mongo-db", "monitoring").(string),
+			VerifyActiveNodes:  config.GetDefault("alerta.active-node-check", false).(bool),
 		}
 		notifiers = append(notifiers, alertaNotifier)
 	}
@@ -93,5 +96,6 @@ func GetNotifiers(config *toml.TomlTree) (notifiers []Notifier) {
 		}
 		notifiers = append(notifiers, pagerdutyNotifier)
 	}
+
 	return
 }

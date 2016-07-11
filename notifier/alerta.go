@@ -20,52 +20,120 @@ type AlertaNotifier struct {
 	VerifyActiveNodes bool
 }
 
-
+//Represents the active nodes which will be recorded to a datastore (mongodb)
 type Node struct {
 	Name string
+	Dc string
 }
 
 type Nodes []Node
 
-func (alertaNotifier *AlertaNotifier) CheckActiveNodes(messages Messages) {
-	var nodes Nodes
-	for _,message := range messages{
-		nodes = append(nodes, Node{message.Node})
+func nodeDiff(a Nodes, b Nodes)(c Nodes) {
+	for _,aNode := range a{
+		aInB := false
+		for _,bNode := range b{
+			if aNode.Name == bNode.Name && aNode.Dc == bNode.Dc{
+				aInB = true
+			}
+		}
+		if !aInB{
+			c = append(c, aNode)
+		}
 	}
 
-	_= alertaNotifier.retrieveNodesFromMongo()
+	return
 }
 
-func (AlertaNotifier *AlertaNotifier) retrieveNodesFromMongo() Nodes{
+
+func processNodes(serverNodes Nodes, currentNodes Nodes) (alerts Messages, addToMongo Nodes){
+	addToMongo = nodeDiff(currentNodes, serverNodes)
+	alertNodes := nodeDiff(serverNodes, currentNodes)
+
+  for _,node := range alertNodes {
+    alerts = append(alerts, createAlertMessage(node))
+  }
+
+	return
+}
+
+
+func (alertaNotifier *AlertaNotifier) CheckActiveNodes(messages Messages) {
+	err,serverNodes := alertaNotifier.retrieveNodesFromMongo()
+  if err != nil{
+    return
+  }
+
+	currentNodes := extractNodesFromMessages(messages)
+	alerts,addToMongo := processNodes(serverNodes, currentNodes)
+  alertaNotifier.alertOnMessages(alerts)
+  alertaNotifier.addNodesToMongo(addToMongo)
+}
+
+
+func createAlertMessage(node Node)(Message){
+  return Message{
+		Node: node.Name,
+		Datacenter: node.Dc,
+		Check: "Active Node Check",
+		Status: "critical",
+		CheckId: "active-node-check",
+		Output: "Node is absent from current checks.",
+		Notes: "Node is absent from current checks. This may not be a problem if the node was manually removed. Remove it from the node cache if this is the case.",
+	}
+}
+
+func extractNodesFromMessages(messages Messages)(nodes Nodes){
+	for _,message := range messages{
+    messageNodeExists := false
+    for _,node := range nodes{
+      if node.Name == message.Node && node.Dc == message.Datacenter{
+        messageNodeExists = true
+      }
+    }
+    if !messageNodeExists{
+      nodes = append(nodes, Node{message.Node, message.Datacenter})
+    }
+	}
+  return
+}
+
+func (alertaNotifier *AlertaNotifier) alertOnMessages(messages Messages){
+	for _, message := range messages {
+		alertaNotifier.sendToAlerta(message)
+	}
+}
+
+func (AlertaNotifier *AlertaNotifier) retrieveNodesFromMongo()(err error, nodes Nodes){
 	sess, err := mgo.Dial(AlertaNotifier.MongoHosts)
 	if err != nil {
-		panic(err)
+		log.Println(err)
+    return
 	}
 	defer sess.Close()
 
 	collection := sess.DB(AlertaNotifier.MongoDB).C("nodes")
-	var nodes Nodes
 	err = collection.Find(nil).Iter().All(&nodes)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
+    return
 	}
-	return nodes
+	return
 }
 
-//Add the node to the database
-//set it to active
-func (alertaNotifier *AlertaNotifier) addNodeToMongo(node Node) {
+func (alertaNotifier *AlertaNotifier) addNodesToMongo(nodes Nodes) {
 	session, err := mgo.Dial(alertaNotifier.MongoHosts)
 	if err != nil{
-		panic(err)
+    log.Println(err)
+    return
 	}
 	defer session.Close()
 
 	conn := session.DB(alertaNotifier.MongoDB).C("nodes")
-	err = conn.Insert(node)
+	err = conn.Insert(nodes)
 
 	if err != nil {
-		log.Fatal(err)
+    log.Println(err)
+    return
 	}
 }
 
@@ -74,14 +142,8 @@ func (alertaNotifier *AlertaNotifier) Notify(alerts Messages) bool {
 	if alertaNotifier.VerifyActiveNodes{
 		alertaNotifier.CheckActiveNodes(alerts)
 	}
-	//printf(alerts)
 
-	for _, alert := range alerts {
-		alertSuccess := alertaNotifier.sendToAlerta(alert)
-		if !alertSuccess{
-			return false
-		}
-	}
+  alertaNotifier.alertOnMessages(alerts)
 	return true
 }
 

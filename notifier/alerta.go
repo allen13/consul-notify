@@ -4,39 +4,38 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"gopkg.in/mgo.v2"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
-	"gopkg.in/mgo.v2"
 )
 
-
 type AlertaNotifier struct {
-	Url string
-	Token string
-	MongoHosts string
-	MongoDB string
+	Url               string
+	Token             string
+	MongoHosts        string
+	MongoDB           string
 	VerifyActiveNodes bool
 }
 
 //Represents the active nodes which will be recorded to a datastore (mongodb)
 type Node struct {
 	Name string
-	Dc string
+	Dc   string
 }
 
 type Nodes []Node
 
-func nodeDiff(a Nodes, b Nodes)(c Nodes) {
-	for _,aNode := range a{
+func nodeDiff(a Nodes, b Nodes) (c Nodes) {
+	for _, aNode := range a {
 		aInB := false
-		for _,bNode := range b{
-			if aNode.Name == bNode.Name && aNode.Dc == bNode.Dc{
+		for _, bNode := range b {
+			if aNode.Name == bNode.Name && aNode.Dc == bNode.Dc {
 				aInB = true
 			}
 		}
-		if !aInB{
+		if !aInB {
 			c = append(c, aNode)
 		}
 	}
@@ -44,70 +43,67 @@ func nodeDiff(a Nodes, b Nodes)(c Nodes) {
 	return
 }
 
-
-func processNodes(serverNodes Nodes, currentNodes Nodes) (alerts Messages, addToMongo Nodes){
+func processNodes(serverNodes Nodes, currentNodes Nodes) (alerts Messages, addToMongo Nodes) {
 	addToMongo = nodeDiff(currentNodes, serverNodes)
 	alertNodes := nodeDiff(serverNodes, currentNodes)
 
-  for _,node := range alertNodes {
-    alerts = append(alerts, createAlertMessage(node))
-  }
+	for _, node := range alertNodes {
+		alerts = append(alerts, createAlertMessage(node))
+	}
 
 	return
 }
 
-
 func (alertaNotifier *AlertaNotifier) CheckActiveNodes(messages Messages) {
-	err,serverNodes := alertaNotifier.retrieveNodesFromMongo()
-  if err != nil{
-    return
-  }
+	err, serverNodes := alertaNotifier.retrieveNodesFromMongo()
+	if err != nil {
+		return
+	}
 
 	currentNodes := extractNodesFromMessages(messages)
-	alerts,addToMongo := processNodes(serverNodes, currentNodes)
-  alertaNotifier.alertOnMessages(alerts)
-  alertaNotifier.addNodesToMongo(addToMongo)
+	alerts, addToMongo := processNodes(serverNodes, currentNodes)
+	alertaNotifier.alertOnMessages(alerts)
+	alertaNotifier.addNodesToMongo(addToMongo)
 }
 
-
-func createAlertMessage(node Node)(Message){
-  return Message{
-		Node: node.Name,
+func createAlertMessage(node Node) Message {
+	return Message{
+		Node:       node.Name,
 		Datacenter: node.Dc,
-		Check: "Active Node Check",
-		Status: "critical",
-		CheckId: "active-node-check",
-		Output: "Node is absent from current checks.",
-		Notes: "Node is absent from current checks. This may not be a problem if the node was manually removed. Remove it from the node cache if this is the case.",
+		Check:      "Active Node Check",
+		Status:     "critical",
+		CheckId:    "active-node-check",
+		Output:     "Node is absent from current checks.",
+		Notes:      "Node is absent from current checks. This may not be a problem if the node was manually removed. Remove it from the node cache if this is the case.",
 	}
 }
 
-func extractNodesFromMessages(messages Messages)(nodes Nodes){
-	for _,message := range messages{
-    messageNodeExists := false
-    for _,node := range nodes{
-      if node.Name == message.Node && node.Dc == message.Datacenter{
-        messageNodeExists = true
-      }
-    }
-    if !messageNodeExists{
-      nodes = append(nodes, Node{message.Node, message.Datacenter})
-    }
+func extractNodesFromMessages(messages Messages) (nodes Nodes) {
+	for _, message := range messages {
+		messageNodeExists := false
+		for _, node := range nodes {
+			if node.Name == message.Node && node.Dc == message.Datacenter {
+				messageNodeExists = true
+			}
+		}
+		if !messageNodeExists {
+			nodes = append(nodes, Node{message.Node, message.Datacenter})
+		}
 	}
-  return
+	return
 }
 
-func (alertaNotifier *AlertaNotifier) alertOnMessages(messages Messages){
+func (alertaNotifier *AlertaNotifier) alertOnMessages(messages Messages) {
 	for _, message := range messages {
 		alertaNotifier.sendToAlerta(message)
 	}
 }
 
-func (AlertaNotifier *AlertaNotifier) retrieveNodesFromMongo()(err error, nodes Nodes){
+func (AlertaNotifier *AlertaNotifier) retrieveNodesFromMongo() (err error, nodes Nodes) {
 	sess, err := mgo.Dial(AlertaNotifier.MongoHosts)
 	if err != nil {
 		log.Println(err)
-    return
+		return
 	}
 	defer sess.Close()
 
@@ -115,41 +111,39 @@ func (AlertaNotifier *AlertaNotifier) retrieveNodesFromMongo()(err error, nodes 
 	err = collection.Find(nil).Iter().All(&nodes)
 	if err != nil {
 		log.Println(err)
-    return
+		return
 	}
 	return
 }
 
 func (alertaNotifier *AlertaNotifier) addNodesToMongo(nodes Nodes) {
 	session, err := mgo.Dial(alertaNotifier.MongoHosts)
-	if err != nil{
-    log.Println(err)
-    return
+	if err != nil {
+		log.Println(err)
+		return
 	}
 	defer session.Close()
 
 	conn := session.DB(alertaNotifier.MongoDB).C("nodes")
-	err = conn.Insert(nodes)
-
-	if err != nil {
-    log.Println(err)
-    return
+	for _, node := range nodes {
+		err = conn.Insert(node)
+		if err != nil {
+			log.Println(err)
+			return
+		}
 	}
 }
 
-
 func (alertaNotifier *AlertaNotifier) Notify(alerts Messages) bool {
-	if alertaNotifier.VerifyActiveNodes{
+	if alertaNotifier.VerifyActiveNodes {
 		alertaNotifier.CheckActiveNodes(alerts)
 	}
 
-  alertaNotifier.alertOnMessages(alerts)
+	alertaNotifier.alertOnMessages(alerts)
 	return true
 }
 
-
 func (alertaNotifier *AlertaNotifier) sendToAlerta(alert Message) bool {
-
 
 	var Url *url.URL
 	Url, err := url.Parse(alertaNotifier.Url + "/alert?api-key=" + alertaNotifier.Token)
@@ -180,7 +174,6 @@ func (alertaNotifier *AlertaNotifier) sendToAlerta(alert Message) bool {
 	postData["text"] = alert.Notes
 	postData["origin"] = "consul-" + alert.Datacenter
 
-
 	var post bytes.Buffer
 	enc := json.NewEncoder(&post)
 	err = enc.Encode(postData)
@@ -190,8 +183,10 @@ func (alertaNotifier *AlertaNotifier) sendToAlerta(alert Message) bool {
 
 	resp, err := http.Post(Url.String(), "application/json", &post)
 	if err != nil {
+		log.Println(err)
 		return false
 	}
+
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusCreated {
 		body, err := ioutil.ReadAll(resp.Body)

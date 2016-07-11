@@ -13,7 +13,7 @@ import (
 	"encoding/json"
 )
 
-const version = "Consul Notify 0.0.1"
+const version = "Consul Notify 0.0.2"
 const usage = `Consul Notify.
 
 Usage:

@@ -1,19 +1,20 @@
 package main
 
 import (
+	"encoding/json"
+	"io/ioutil"
 	"log"
-	"github.com/docopt/docopt-go"
-	"github.com/pelletier/go-toml"
-	"github.com/allen13/consul-notify/notifier"
 	"os"
+	"os/exec"
 	"syscall"
 	"time"
-	"os/exec"
-	"io/ioutil"
-	"encoding/json"
+
+	"github.com/allen13/consul-notify/notifier"
+	"github.com/docopt/docopt-go"
+	"github.com/pelletier/go-toml"
 )
 
-const version = "Consul Notify 0.0.1"
+const version = "Consul Notify 0.0.4"
 const usage = `Consul Notify.
 
 Usage:
@@ -34,7 +35,7 @@ func main() {
 	configFile := args["--config"].(string)
 	config, err := toml.LoadFile(configFile)
 	if err != nil {
-		log.Fatalf("config file error: ", err.Error())
+		log.Fatalf("config file error: %s", err.Error())
 	}
 
 	consulAddr := config.GetDefault("consul.addr", "localhost:8500").(string)
@@ -48,15 +49,14 @@ func main() {
 	}
 }
 
-
-func handleWatch(consulDc string, config *toml.TomlTree){
+func handleWatch(consulDc string, config *toml.TomlTree) {
 	var checks []Check
 	readConsulStdinToWatchObject(&checks)
 
 	messages := processChecks(checks, consulDc)
 	notifiers := notifier.GetNotifiers(config)
 
-	for _,notifier := range notifiers{
+	for _, notifier := range notifiers {
 		notifier.Notify(messages)
 	}
 }
@@ -66,7 +66,7 @@ func runWatcher(consulAddr, datacenter, watchType string) {
 	cmd := exec.Command(
 		"consul", "lock",
 		"-http-addr", consulAddr,
-		"consul-notify/" + datacenter,
+		"consul-notify/"+datacenter,
 		"consul", "watch",
 		"-http-addr", consulAddr,
 		"-datacenter", datacenter,
@@ -119,23 +119,21 @@ type Check struct {
 	ServiceName string
 }
 
-func processChecks(checks []Check, datacenter string) (messages notifier.Messages){
+func processChecks(checks []Check, datacenter string) (messages notifier.Messages) {
 	messages = make(notifier.Messages, len(checks))
 	for i, check := range checks {
 		messages[i] = notifier.Message{
-			Node:      check.Node,
-			ServiceId: check.ServiceID,
-			Service:   check.ServiceName,
-			CheckId:   check.CheckID,
-			Check:     check.Name,
-			Status:    check.Status,
-			Output:    check.Output,
-			Notes:     check.Notes,
+			Node:       check.Node,
+			ServiceId:  check.ServiceID,
+			Service:    check.ServiceName,
+			CheckId:    check.CheckID,
+			Check:      check.Name,
+			Status:     check.Status,
+			Output:     check.Output,
+			Notes:      check.Notes,
 			Datacenter: datacenter,
-			Timestamp: time.Now(),
+			Timestamp:  time.Now(),
 		}
 	}
 	return
 }
-
-

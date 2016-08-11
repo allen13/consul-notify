@@ -1,0 +1,25 @@
+{
+	"ImportPath": "github.com/allen13/consul-notify",
+	"GoVersion": "go1.6",
+	"GodepVersion": "v74",
+	"Deps": [
+		{
+			"ImportPath": "github.com/darkcrux/gopherduty",
+			"Rev": "f4906ce7e59b33a50bfbcba93e2cf58778c11fb9"
+		},
+		{
+			"ImportPath": "github.com/docopt/docopt-go",
+			"Comment": "0.6.2",
+			"Rev": "784ddc588536785e7299f7272f39101f7faccc3f"
+		},
+		{
+			"ImportPath": "github.com/pelletier/go-buffruneio",
+			"Rev": "df1e16fde7fc330a0ca68167c23bf7ed6ac31d6d"
+		},
+		{
+			"ImportPath": "github.com/pelletier/go-toml",
+			"Comment": "v0.3.5-3-g7f29280",
+			"Rev": "7f292800de264b6cfdbce34f453622b68edeb2a0"
+		}
+	]
+}

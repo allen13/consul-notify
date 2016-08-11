@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"errors"
 )
 
 type AlertaNotifier struct {
@@ -19,21 +20,19 @@ type AlertaNotifier struct {
 func (alertaNotifier *AlertaNotifier) Notify(alerts Messages) bool {
 
 	for _, alert := range alerts {
-		alertSuccess := alertaNotifier.sendToAlerta(alert)
-		if !alertSuccess{
-			return false
+		err := alertaNotifier.sendToAlerta(alert)
+		if err != nil{
+			log.Println(err)
 		}
 	}
 	return true
 }
 
-func (alertaNotifier *AlertaNotifier) sendToAlerta(alert Message) bool {
+func (alertaNotifier *AlertaNotifier) sendToAlerta(alert Message)(err error) {
 
-
-	var Url *url.URL
-	Url, err := url.Parse(alertaNotifier.Url + "/alert?api-key=" + alertaNotifier.Token)
+	alertUrl, err := url.Parse(alertaNotifier.Url + "/alert?api-key=" + alertaNotifier.Token)
 	if err != nil {
-		return false
+		return err
 	}
 
 	var severity string
@@ -64,18 +63,18 @@ func (alertaNotifier *AlertaNotifier) sendToAlerta(alert Message) bool {
 	enc := json.NewEncoder(&post)
 	err = enc.Encode(postData)
 	if err != nil {
-		return false
+		return err
 	}
 
-	resp, err := http.Post(Url.String(), "application/json", &post)
+	resp, err := http.Post(alertUrl.String(), "application/json", &post)
 	if err != nil {
-		return false
+		return err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusCreated {
 		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
-			return false
+			return err
 		}
 		type response struct {
 			Message string `json:"message"`
@@ -85,7 +84,7 @@ func (alertaNotifier *AlertaNotifier) sendToAlerta(alert Message) bool {
 		dec := json.NewDecoder(b)
 		dec.Decode(r)
 		log.Println(r.Message)
-		return false
+		return errors.New(r.Message)
 	}
-	return true
+	return
 }

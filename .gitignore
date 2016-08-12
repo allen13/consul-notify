@@ -31,3 +31,4 @@ _testmain.go
 .idea/
 consul-notify
 data/
+consul-notify_*

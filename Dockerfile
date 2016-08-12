@@ -1,6 +1,6 @@
 FROM golang:alpine
 
-ENV CONSUL_NOTIFY_VERSION 0.0.5
+ENV CONSUL_NOTIFY_VERSION 1.0.0
 ENV GOPATH /go
 ENV GOREPO github.com/allen13/consul-notify
 RUN mkdir -p $GOPATH/src/$GOREPO

@@ -38,3 +38,13 @@ alerta
     [alerta]
       url = "http://localhost:8000"
       token = ""
+      
+building a new consul-notify release
+------------------------------------
+
+First update the versions in the Dockerfile and the consul-notify.go file. Then run:
+
+    docker build . -t consul-notify
+    docker run -it -v $(pwd):/output consul-notify
+    
+This will drop a tar.gz statically linked linux binary archive in the current directory. The artifact can now be uploaded.

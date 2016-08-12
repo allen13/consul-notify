@@ -48,3 +48,9 @@ First update the versions in the Dockerfile and the consul-notify.go file. Then 
     docker run -it -v $(pwd):/output consul-notify
     
 This will drop a tar.gz statically linked linux binary archive in the current directory. The artifact can now be uploaded.
+
+
+local consul test server
+------------------------
+
+    consul agent -data-dir ./data -bind=127.0.0.1 -server -bootstrap-expect 1

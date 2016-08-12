@@ -13,6 +13,11 @@
 			"Rev": "784ddc588536785e7299f7272f39101f7faccc3f"
 		},
 		{
+			"ImportPath": "github.com/hashicorp/consul/api",
+			"Comment": "v0.5.2-72-g5aa9045",
+			"Rev": "5aa90455ce78d4d41578bafc86305e6e6b28d7d2"
+		},
+		{
 			"ImportPath": "github.com/pelletier/go-buffruneio",
 			"Rev": "df1e16fde7fc330a0ca68167c23bf7ed6ac31d6d"
 		},

@@ -4,7 +4,7 @@ Wants=consul.service
 After=consul.service
 
 [Service]
-ExecStart=/usr/bin/consul-notify start
+ExecStart=/usr/bin/consul-notify
 ExecReload=/bin/kill -HUP $MAINPID
 KillSignal=SIGINT
 Restart=always

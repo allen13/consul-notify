@@ -30,3 +30,4 @@ _testmain.go
 .vagrant
 .idea/
 consul-notify
+data/

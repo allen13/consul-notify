@@ -1,25 +1,24 @@
 package main
 
 import (
-	"encoding/json"
-	"io/ioutil"
 	"log"
 	"os"
-	"os/exec"
-	"syscall"
 	"time"
 
+	"github.com/allen13/consul-notify/consul"
 	"github.com/allen13/consul-notify/notifier"
 	"github.com/docopt/docopt-go"
+	consulapi "github.com/hashicorp/consul/api"
 	"github.com/pelletier/go-toml"
+	"os/signal"
+	"github.com/allen13/consul-notify/election"
 )
 
-const version = "Consul Notify 0.0.4"
+const version = "Consul Notify 1.0.0"
 const usage = `Consul Notify.
 
 Usage:
-  consul-notify start [--config=<config>]
-  consul-notify watch [--config=<config>]
+  consul-notify [--config=<config>]
   consul-notify --help
   consul-notify --version
 
@@ -40,86 +39,54 @@ func main() {
 
 	consulAddr := config.GetDefault("consul.addr", "localhost:8500").(string)
 	consulDc := config.GetDefault("consul.dc", "dc1").(string)
+	gatherInterval, err := time.ParseDuration(config.GetDefault("consul.gather_interval", "1m").(string))
+	if err != nil {
+		log.Fatalln(err)
+	}
 
-	switch {
-	case args["start"].(bool):
-		runWatcher(consulAddr, consulDc, "checks")
-	case args["watch"].(bool):
-		handleWatch(consulDc, config)
+	client, err := consul.NewClient(consulAddr, consulDc)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	notifiers := notifier.GetNotifiers(config)
+	shutdown := createShutdownChannel()
+
+	leaderElection := election.StartLeaderElection(client.GetApiClient(), shutdown)
+	defer leaderElection.Stop()
+
+	gatherTicker := time.NewTicker(gatherInterval)
+	defer gatherTicker.Stop()
+
+	for {
+		select {
+		case <-shutdown:
+			log.Println("shutting down consul-notify")
+			return
+		case <-gatherTicker.C:
+			if leaderElection.IsLeader() {
+				gatherChecks(client, notifiers, consulDc, gatherInterval)
+			}
+		}
 	}
 }
 
-func handleWatch(consulDc string, config *toml.TomlTree) {
-	var checks []Check
-	readConsulStdinToWatchObject(&checks)
+func gatherChecks(client *consul.ConsulClient, notifiers []notifier.Notifier, dc string, gatherInterval time.Duration) {
 
-	messages := processChecks(checks, consulDc)
-	notifiers := notifier.GetNotifiers(config)
+	checks, err := client.GetAllChecks()
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	messages := processChecks(checks, dc, gatherInterval)
 
 	for _, notifier := range notifiers {
 		notifier.Notify(messages)
 	}
 }
 
-func runWatcher(consulAddr, datacenter, watchType string) {
-	consulNotify := os.Args[0]
-	cmd := exec.Command(
-		"consul", "lock",
-		"-http-addr", consulAddr,
-		"consul-notify/"+datacenter,
-		"consul", "watch",
-		"-http-addr", consulAddr,
-		"-datacenter", datacenter,
-		"-type", watchType,
-		consulNotify, "watch")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	log.Println("Starting watcher...")
-	if err := cmd.Run(); err != nil {
-		var exitCode int
-		switch err.(type) {
-		case *exec.ExitError:
-			exitError, _ := err.(*exec.ExitError)
-			status, _ := exitError.Sys().(syscall.WaitStatus)
-			exitCode = status.ExitStatus()
-			log.Println("Shutting down watcher --> Exit Code: ", exitCode)
-		case *exec.Error:
-			exitCode = 1
-			log.Println("Shutting down watcher --> Something went wrong running consul watch: ", err.Error())
-		default:
-			exitCode = 127
-			log.Println("Shutting down watcher --> Unknown error: ", err.Error())
-		}
-		os.Exit(exitCode)
-	} else {
-		log.Printf("Execution complete.")
-	}
-}
-
-func readConsulStdinToWatchObject(watchObject interface{}) {
-	data, err := ioutil.ReadAll(os.Stdin)
-	if err != nil {
-		log.Println("stdin read error: ", err)
-	}
-	err = json.Unmarshal(data, watchObject)
-	if err != nil {
-		log.Println("json unmarshall error: ", err)
-	}
-}
-
-type Check struct {
-	Node        string
-	CheckID     string
-	Name        string
-	Status      string
-	Notes       string
-	Output      string
-	ServiceID   string
-	ServiceName string
-}
-
-func processChecks(checks []Check, datacenter string) (messages notifier.Messages) {
+func processChecks(checks []*consulapi.HealthCheck, datacenter string, gatherInterval time.Duration) (messages notifier.Messages) {
 	messages = make(notifier.Messages, len(checks))
 	for i, check := range checks {
 		messages[i] = notifier.Message{
@@ -133,7 +100,23 @@ func processChecks(checks []Check, datacenter string) (messages notifier.Message
 			Notes:      check.Notes,
 			Datacenter: datacenter,
 			Timestamp:  time.Now(),
+			Timeout: gatherInterval.String(),
 		}
 	}
 	return
+}
+
+func createShutdownChannel() chan struct{} {
+	shutdown := make(chan struct{})
+	signals := make(chan os.Signal)
+	signal.Notify(signals, os.Interrupt)
+
+	go func() {
+		sig := <-signals
+		if sig == os.Interrupt {
+			close(shutdown)
+		}
+	}()
+
+	return shutdown
 }

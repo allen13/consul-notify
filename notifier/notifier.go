@@ -22,6 +22,7 @@ type Message struct {
 	Output       string
 	Notes        string
 	Datacenter   string
+	Timeout      string
 	Interval  int
 	Timestamp time.Time
 }

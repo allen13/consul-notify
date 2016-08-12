@@ -29,7 +29,6 @@ func (alertaNotifier *AlertaNotifier) Notify(alerts Messages) bool {
 }
 
 func (alertaNotifier *AlertaNotifier) sendToAlerta(alert Message)(err error) {
-
 	alertUrl, err := url.Parse(alertaNotifier.Url + "/alert?api-key=" + alertaNotifier.Token)
 	if err != nil {
 		return err
@@ -57,6 +56,7 @@ func (alertaNotifier *AlertaNotifier) sendToAlerta(alert Message)(err error) {
 	postData["value"] = alert.Output
 	postData["text"] = alert.Notes
 	postData["origin"] = "consul-" + alert.Datacenter
+	postData["timeout"] = alert.Timeout
 
 
 	var post bytes.Buffer

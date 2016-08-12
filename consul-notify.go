@@ -39,7 +39,12 @@ func main() {
 
 	consulAddr := config.GetDefault("consul.addr", "localhost:8500").(string)
 	consulDc := config.GetDefault("consul.dc", "dc1").(string)
-	gatherInterval, err := time.ParseDuration(config.GetDefault("consul.gather_interval", "1m").(string))
+	gatherInterval, err := time.ParseDuration(config.GetDefault("consul.gather_interval", "5s").(string))
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	gatherTimeout, err := time.ParseDuration(config.GetDefault("consul.gather_timeout", "20s").(string))
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -65,13 +70,13 @@ func main() {
 			return
 		case <-gatherTicker.C:
 			if leaderElection.IsLeader() {
-				gatherChecks(client, notifiers, consulDc, gatherInterval)
+				gatherChecks(client, notifiers, consulDc, gatherTimeout)
 			}
 		}
 	}
 }
 
-func gatherChecks(client *consul.ConsulClient, notifiers []notifier.Notifier, dc string, gatherInterval time.Duration) {
+func gatherChecks(client *consul.ConsulClient, notifiers []notifier.Notifier, dc string, gatherTimeout time.Duration) {
 
 	checks, err := client.GetAllChecks()
 	if err != nil {
@@ -79,15 +84,16 @@ func gatherChecks(client *consul.ConsulClient, notifiers []notifier.Notifier, dc
 		return
 	}
 
-	messages := processChecks(checks, dc, gatherInterval)
+	messages := processChecks(checks, dc, gatherTimeout)
 
 	for _, notifier := range notifiers {
 		notifier.Notify(messages)
 	}
 }
 
-func processChecks(checks []*consulapi.HealthCheck, datacenter string, gatherInterval time.Duration) (messages notifier.Messages) {
+func processChecks(checks []*consulapi.HealthCheck, datacenter string, gatherTimeout time.Duration) (messages notifier.Messages) {
 	messages = make(notifier.Messages, len(checks))
+
 	for i, check := range checks {
 		messages[i] = notifier.Message{
 			Node:       check.Node,
@@ -100,7 +106,7 @@ func processChecks(checks []*consulapi.HealthCheck, datacenter string, gatherInt
 			Notes:      check.Notes,
 			Datacenter: datacenter,
 			Timestamp:  time.Now(),
-			Timeout: gatherInterval.String(),
+			Timeout: gatherTimeout.String(),
 		}
 	}
 	return

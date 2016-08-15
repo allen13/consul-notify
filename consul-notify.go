@@ -106,7 +106,7 @@ func processChecks(checks []*consulapi.HealthCheck, datacenter string, gatherTim
 			Notes:      check.Notes,
 			Datacenter: datacenter,
 			Timestamp:  time.Now(),
-			Timeout: gatherTimeout.String(),
+			Timeout: int(gatherTimeout.Seconds()),
 		}
 	}
 	return

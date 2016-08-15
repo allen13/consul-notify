@@ -22,7 +22,8 @@ type Message struct {
 	Output       string
 	Notes        string
 	Datacenter   string
-	Timeout      string
+	//timeout in seconds before alert is considered stale
+	Timeout      int
 	Interval  int
 	Timestamp time.Time
 }

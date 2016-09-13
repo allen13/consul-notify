@@ -1,17 +1,15 @@
-FROM golang:alpine
+FROM alpine:edge
 
-ENV CONSUL_NOTIFY_VERSION 1.0.0
+ENV CONSUL_NOTIFY_VERSION 1.0.1
 ENV GOPATH /go
 ENV GOREPO github.com/allen13/consul-notify
 RUN mkdir -p $GOPATH/src/$GOREPO
 COPY . $GOPATH/src/$GOREPO
 WORKDIR $GOPATH/src/$GOREPO
 
-RUN set -ex \
-	&& apk add --no-cache git tar\
-	&& go get github.com/tools/godep
+RUN apk add --no-cache alpine-sdk tar go
 
-RUN CGO_ENABLED=0 $GOPATH/bin/godep go build consul-notify.go
+RUN CGO_ENABLED=0 go build consul-notify.go
 RUN tar -czvf consul-notify_${CONSUL_NOTIFY_VERSION}_linux_amd64.tar.gz consul-notify
 VOLUME /output
 

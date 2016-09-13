@@ -1,0 +1,22 @@
+hash: e66a24c69aaa2c733aeea7edd24a260bef383bcb83b0a4cb6c90b6087bd0d1bd
+updated: 2016-09-13T09:45:06.239418628-05:00
+imports:
+- name: github.com/darkcrux/gopherduty
+  version: f4906ce7e59b33a50bfbcba93e2cf58778c11fb9
+- name: github.com/docopt/docopt-go
+  version: 784ddc588536785e7299f7272f39101f7faccc3f
+- name: github.com/hashicorp/consul
+  version: dd8061b3dbaa66454644e485927671f93625aa92
+  subpackages:
+  - api
+- name: github.com/hashicorp/go-cleanhttp
+  version: ad28ea4487f05916463e2423a55166280e8254b5
+- name: github.com/hashicorp/serf
+  version: 9432bc08aa8d486e497e27f84878ebbe8c1eab66
+  subpackages:
+  - coordinate
+- name: github.com/pelletier/go-buffruneio
+  version: df1e16fde7fc330a0ca68167c23bf7ed6ac31d6d
+- name: github.com/pelletier/go-toml
+  version: 64ff1ea4d585bc1fca65e6331eb8239f2ff31845
+testImports: []

@@ -14,7 +14,7 @@ import (
 	"github.com/allen13/consul-notify/election"
 )
 
-const version = "Consul Notify 1.0.0"
+const version = "Consul Notify 1.0.1"
 const usage = `Consul Notify.
 
 Usage:

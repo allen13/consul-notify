@@ -2,7 +2,7 @@ FROM alpine:edge
 
 RUN apk add --no-cache alpine-sdk tar go
 
-ENV CONSUL_NOTIFY_VERSION 1.0.1
+ENV CONSUL_NOTIFY_VERSION 1.0.3
 ENV GOPATH /go
 ENV GOREPO github.com/allen13/consul-notify
 RUN mkdir -p $GOPATH/src/$GOREPO

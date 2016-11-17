@@ -83,6 +83,7 @@ func GetNotifiers(config *toml.TomlTree) (notifiers []Notifier) {
 		alertaNotifier := &AlertaNotifier{
 			Url: config.GetDefault("alerta.url", "http://localhost:8000").(string),
 			Token: config.GetDefault("alerta.token", "").(string),
+			TLSSkipVerify: config.GetDefault("alerta.tls_skip_verify", true).(bool),
 		}
 		notifiers = append(notifiers, alertaNotifier)
 	}

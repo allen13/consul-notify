@@ -7,13 +7,14 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"net/url"
 	"errors"
+	"crypto/tls"
 )
 
 type AlertaNotifier struct {
 	Url string
 	Token string
+	TLSSkipVerify bool `toml:"tls_skip_verify"`
 }
 
 
@@ -29,11 +30,6 @@ func (alertaNotifier *AlertaNotifier) Notify(alerts Messages) bool {
 }
 
 func (alertaNotifier *AlertaNotifier) sendToAlerta(alert Message)(err error) {
-	alertUrl, err := url.Parse(alertaNotifier.Url + "/alert?api-key=" + alertaNotifier.Token)
-	if err != nil {
-		return err
-	}
-
 	var severity string
 	switch alert.Status {
 	case "passing":
@@ -66,10 +62,21 @@ func (alertaNotifier *AlertaNotifier) sendToAlerta(alert Message)(err error) {
 		return err
 	}
 
-	resp, err := http.Post(alertUrl.String(), "application/json", &post)
+	req, err := http.NewRequest("POST", alertaNotifier.Url + "/alert" , &post)
+	req.Header.Add("Authorization", "Bearer " + alertaNotifier.Token)
+	req.Header.Add("Content-Type", "application/json; charset=utf-8")
+
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: alertaNotifier.TLSSkipVerify},
+		},
+	}
+	resp, err := client.Do(req)
+
 	if err != nil {
 		return err
 	}
+
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusCreated {
 		body, err := ioutil.ReadAll(resp.Body)
